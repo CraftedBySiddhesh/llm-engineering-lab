@@ -72,14 +72,29 @@ def build_system_prompt(level: int, subject: str) -> str:
 
 def build_messages(history: List[Tuple[str, str]], user_msg: str, system_prompt: str):
     """
-    history: [(user, assistant), ...] from Gradio
+    history: typically [(user, assistant), ...] from Gradio ChatInterface.
+    Be forgiving if entries are not 2-tuples (e.g., dicts from future formats).
     """
     msgs = [{"role": "system", "content": system_prompt}]
-    for u, a in history:
-        if u:
-            msgs.append({"role": "user", "content": u})
-        if a:
-            msgs.append({"role": "assistant", "content": a})
+    for entry in history:
+        user_text = None
+        assistant_text = None
+
+        # Handle classic tuple/list of length 2
+        if isinstance(entry, (tuple, list)) and len(entry) >= 2:
+            user_text, assistant_text = entry[0], entry[1]
+        # Handle dict-based history (role/content pairs)
+        elif isinstance(entry, dict):
+            # Gradio sometimes uses {"role": "user"/"assistant", "content": "..."}
+            if entry.get("role") == "user":
+                user_text = entry.get("content")
+            elif entry.get("role") == "assistant":
+                assistant_text = entry.get("content")
+
+        if user_text:
+            msgs.append({"role": "user", "content": user_text})
+        if assistant_text:
+            msgs.append({"role": "assistant", "content": assistant_text})
     msgs.append({"role": "user", "content": user_msg})
     return msgs
 
